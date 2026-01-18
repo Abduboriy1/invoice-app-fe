@@ -130,7 +130,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useInvoice } from '@/composables/useInvoice'
 import { InvoiceStatus } from '@/types/invoice'
 

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite && vue-devtools",
+    "dev": "vite & vue-devtools",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview"
   },
