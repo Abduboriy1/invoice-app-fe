@@ -1,3 +1,115 @@
+<script lang="ts" setup>
+import {computed, onMounted, ref} from 'vue'
+import {useTimeEntry} from '@/composables/useTimeEntry'
+import {useToast} from 'vue-toastification'
+import {format} from 'date-fns'
+import type {TimeEntry} from '@/types/timeEntry'
+import TimeEntryModal from '@/components/time/TimeEntryModal.vue'
+import ThreeColumnLayout from "@/layouts/ThreeColumnLayout.vue"
+
+
+const {timeEntries, loading, error, fetchTimeEntries, deleteTimeEntry, syncTimeEntryToJira} = useTimeEntry()
+const toast = useToast()
+
+const showCreateModal = ref(false)
+const editingEntry = ref<TimeEntry | null>(null)
+
+const filters = ref({
+    start_date: '',
+    end_date: '',
+    is_billable: '',
+})
+
+const totalDuration = computed(() => {
+    return timeEntries.value.reduce((sum, entry) => sum + entry.hours, 0)
+})
+
+const billableDuration = computed(() => {
+    return timeEntries.value
+        .filter(entry => entry.is_billable)
+        .reduce((sum, entry) => sum + entry.hours, 0)
+})
+
+const nonBillableDuration = computed(() => {
+    return timeEntries.value
+        .filter(entry => !entry.is_billable)
+        .reduce((sum, entry) => sum + entry.hours, 0)
+})
+
+function formatDate(date: string) {
+    return format(new Date(date), 'MMM dd, yyyy')
+}
+
+function formatDuration(decimal: number): string {
+    // Get the integer part as hours
+    const hours = Math.floor(decimal);
+
+    // Get the fractional part and convert to minutes
+    const fractionalPart = decimal - hours;
+    let minutes = Math.round(fractionalPart * 60);
+
+    // Handle edge case where rounding gives 60 minutes
+    if (minutes === 60) {
+        return `${hours + 1}h ${0}m`;
+    }
+
+    return `${hours}h ${minutes}m`;
+}
+
+function applyFilters() {
+    const params: any = {}
+    if (filters.value.start_date) params.start_date = filters.value.start_date
+    if (filters.value.end_date) params.end_date = filters.value.end_date
+    if (filters.value.is_billable !== '') params.is_billable = filters.value.is_billable === 'true'
+
+    fetchTimeEntries(params)
+}
+
+function editEntry(entry: TimeEntry) {
+    editingEntry.value = entry
+}
+
+function closeModal() {
+    showCreateModal.value = false
+    editingEntry.value = null
+}
+
+async function handleSubmit() {
+    closeModal()
+    await fetchTimeEntries()
+    toast.success(editingEntry.value ? 'Time entry updated!' : 'Time entry created!')
+}
+
+async function deleteEntry(id: string) {
+    if (!confirm('Are you sure you want to delete this time entry?')) return
+
+    try {
+        await deleteTimeEntry(id)
+        toast.success('Time entry deleted!')
+        await fetchTimeEntries()
+    } catch (e: any) {
+        toast.error(e.response?.data?.message || 'Failed to delete time entry')
+    }
+}
+
+async function syncToJira(entry: TimeEntry) {
+    if (!entry.id) return
+
+    try {
+        await syncTimeEntryToJira(entry.id)
+        toast.success('Time entry synced to Jira!')
+        await fetchTimeEntries()
+    } catch (e: any) {
+        toast.error(e.response?.data?.message || 'Failed to sync to Jira')
+    }
+}
+
+onMounted(() => {
+    fetchTimeEntries()
+})
+</script>
+
+
 <template>
     <ThreeColumnLayout>
         <template #left>
@@ -202,104 +314,3 @@
         </template>
     </ThreeColumnLayout>
 </template>
-
-<script lang="ts" setup>
-import {computed, onMounted, ref} from 'vue'
-import {useTimeEntry} from '@/composables/useTimeEntry'
-import {useToast} from 'vue-toastification'
-import {format} from 'date-fns'
-import type {TimeEntry} from '@/types/timeEntry'
-import TimeEntryModal from '@/components/time/TimeEntryModal.vue'
-import ThreeColumnLayout from "@/layouts/ThreeColumnLayout.vue"
-
-
-const {timeEntries, loading, error, fetchTimeEntries, deleteTimeEntry, syncTimeEntryToJira} = useTimeEntry()
-const toast = useToast()
-
-const showCreateModal = ref(false)
-const editingEntry = ref<TimeEntry | null>(null)
-
-const filters = ref({
-    start_date: '',
-    end_date: '',
-    is_billable: '',
-})
-
-const totalDuration = computed(() => {
-    return timeEntries.value.reduce((sum, entry) => sum + entry.hours, 0)
-})
-
-const billableDuration = computed(() => {
-    return timeEntries.value
-        .filter(entry => entry.is_billable)
-        .reduce((sum, entry) => sum + entry.hours, 0)
-})
-
-const nonBillableDuration = computed(() => {
-    return timeEntries.value
-        .filter(entry => !entry.is_billable)
-        .reduce((sum, entry) => sum + entry.hours, 0)
-})
-
-function formatDate(date: string) {
-    return format(new Date(date), 'MMM dd, yyyy')
-}
-
-function formatDuration(minutes: number) {
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    return `${hours}h ${mins}m`
-}
-
-function applyFilters() {
-    const params: any = {}
-    if (filters.value.start_date) params.start_date = filters.value.start_date
-    if (filters.value.end_date) params.end_date = filters.value.end_date
-    if (filters.value.is_billable !== '') params.is_billable = filters.value.is_billable === 'true'
-
-    fetchTimeEntries(params)
-}
-
-function editEntry(entry: TimeEntry) {
-    editingEntry.value = entry
-}
-
-function closeModal() {
-    showCreateModal.value = false
-    editingEntry.value = null
-}
-
-async function handleSubmit() {
-    closeModal()
-    await fetchTimeEntries()
-    toast.success(editingEntry.value ? 'Time entry updated!' : 'Time entry created!')
-}
-
-async function deleteEntry(id: string) {
-    if (!confirm('Are you sure you want to delete this time entry?')) return
-
-    try {
-        await deleteTimeEntry(id)
-        toast.success('Time entry deleted!')
-        await fetchTimeEntries()
-    } catch (e: any) {
-        toast.error(e.response?.data?.message || 'Failed to delete time entry')
-    }
-}
-
-async function syncToJira(entry: TimeEntry) {
-    if (!entry.id) return
-
-    try {
-        await syncTimeEntryToJira(entry.id)
-        toast.success('Time entry synced to Jira!')
-        await fetchTimeEntries()
-    } catch (e: any) {
-        toast.error(e.response?.data?.message || 'Failed to sync to Jira')
-    }
-}
-
-onMounted(() => {
-    fetchTimeEntries()
-})
-</script>
