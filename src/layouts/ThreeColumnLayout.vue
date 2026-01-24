@@ -1,5 +1,5 @@
 <template>
-    <div class="flex gap-4 p-4 h-screen">
+    <div class="flex gap-4 p-4 h-full">
         <!-- Left Section (1 unit) -->
         <div class="flex-1 bg-white-200 p-4 rounded-lg">
             <slot name="left"></slot>

@@ -96,11 +96,11 @@ export const useTimeEntryStore = defineStore('timeEntry', () => {
         }
     }
 
-    async function syncToJira(id: string, issueKey: string) {
+    async function syncToJira(id: string) {
         loading.value = true
         error.value = null
         try {
-            await timeEntryService.syncToJira(id, issueKey)
+            await timeEntryService.syncToJira(id)
             // Refresh to get updated sync status
             await fetchTimeEntry(id)
             // Also update in the list

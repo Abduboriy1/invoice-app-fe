@@ -1,6 +1,6 @@
 import {computed} from 'vue'
 import {useTimeEntryStore} from '@/stores/timeEntry'
-import {TimeEntryCreateRequest} from '@/types/timeEntry'
+import {TimeEntryCreateRequest, TimeEntryUpdateRequest} from '@/types/timeEntry'
 
 export function useTimeEntry() {
     const store = useTimeEntryStore()
@@ -22,7 +22,7 @@ export function useTimeEntry() {
 
     const createTimeEntry = (data: TimeEntryCreateRequest) => store.createTimeEntry(data)
 
-    const updateTimeEntry = (id: string, data: Partial<TimeEntryCreateRequest>) =>
+    const updateTimeEntry = (id: string, data: TimeEntryUpdateRequest) =>
         store.updateTimeEntry(id, data)
 
     const deleteTimeEntry = (id: string) => store.deleteTimeEntry(id)

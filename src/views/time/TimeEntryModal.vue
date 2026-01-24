@@ -38,13 +38,13 @@
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700" for="modal-duration">Duration
-                                        (minutes)</label>
+                                    <label class="block text-sm font-medium text-gray-700" for="modal-hours">Hours</label>
                                     <input
-                                        id="modal-duration"
-                                        v-model.number="formData.duration"
+                                        id="modal-hours"
+                                        v-model.number="formData.hours"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                                        min="1"
+                                        min="0.25"
+                                        step="0.25"
                                         required
                                         type="number"
                                     />
@@ -66,7 +66,7 @@
                             <div>
                                 <label class="flex items-center">
                                     <input
-                                        v-model="formData.billable"
+                                        v-model="formData.is_billable"
                                         class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                                         type="checkbox"
                                     />
@@ -116,19 +116,19 @@ const {createTimeEntry, updateTimeEntry} = useTimeEntry()
 
 const formData = reactive<TimeEntryCreateRequest>({
     description: props.entry?.description || '',
-    duration: props.entry?.duration || 60,
-    date: props.entry?.date || new Date().toISOString().split('T')[0],
+    hours: props.entry?.hours || 1,
+    date: new Date(props.entry?.date || new Date().toISOString().split('T')[0]),
     jira_issue_key: props.entry?.jira_issue_key || '',
-    billable: props.entry?.billable ?? true,
+    is_billable: props.entry?.is_billable ?? true,
 })
 
 watch(() => props.entry, (newEntry) => {
     if (newEntry) {
         formData.description = newEntry.description
-        formData.duration = newEntry.duration
-        formData.date = newEntry.date
+        formData.hours = newEntry.hours
+        formData.date = new Date(newEntry.date)
         formData.jira_issue_key = newEntry.jira_issue_key || ''
-        formData.billable = newEntry.billable
+        formData.is_billable = newEntry.is_billable
     }
 })
 

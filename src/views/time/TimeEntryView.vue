@@ -2,7 +2,7 @@
 import {computed, onMounted, ref} from 'vue'
 import {useTimeEntry} from '@/composables/useTimeEntry'
 import {useToast} from 'vue-toastification'
-import {format} from 'date-fns'
+import {endOfMonth, format, startOfMonth} from 'date-fns'
 import type {TimeEntry} from '@/types/timeEntry'
 import TimeEntryModal from '@/components/time/TimeEntryModal.vue'
 import ThreeColumnLayout from "@/layouts/ThreeColumnLayout.vue"
@@ -105,7 +105,14 @@ async function syncToJira(entry: TimeEntry) {
 }
 
 onMounted(() => {
-    fetchTimeEntries()
+    const now = new Date()
+    const start = format(startOfMonth(now), 'yyyy-MM-dd')
+    const end = format(endOfMonth(now), 'yyyy-MM-dd')
+
+    filters.value.start_date = start
+    filters.value.end_date = end
+
+    fetchTimeEntries({start_date: start, end_date: end})
 })
 </script>
 

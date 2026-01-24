@@ -40,7 +40,7 @@ export const timeEntryService = {
         const payload = {
             description: data.description,
             hours: data.hours,
-            date: data.date.toISOString().split('T')[0],
+            date: data.date,
             is_billable: data.is_billable,
             ...(data.jira_issue_key && { jira_issue_key: data.jira_issue_key })
         }
@@ -53,9 +53,7 @@ export const timeEntryService = {
         await apiClient.delete(`/time-entries/${id}`)
     },
 
-    async syncToJira(id: string, issueKey: string): Promise<void> {
-        await apiClient.post(`/time-entries/${id}/sync-jira`, {
-            issue_key: issueKey
-        })
+    async syncToJira(id: string): Promise<void> {
+        await apiClient.post(`/time-entries/${id}/sync-jira`)
     }
 }
