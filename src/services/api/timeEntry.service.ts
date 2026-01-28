@@ -55,5 +55,12 @@ export const timeEntryService = {
 
     async syncToJira(id: string): Promise<void> {
         await apiClient.post(`/time-entries/${id}/sync-jira`)
+    },
+
+    async pullWorklogs(startDate: string, endDate: string): Promise<void> {
+        await apiClient.post('/jira/pull-worklogs', {
+            start_date: startDate,
+            end_date: endDate,
+        })
     }
 }

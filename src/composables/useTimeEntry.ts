@@ -29,6 +29,8 @@ export function useTimeEntry() {
 
     const syncTimeEntryToJira = (id: string) => store.syncToJira(id)
 
+    const pullWorklogs = (startDate: string, endDate: string) => store.pullWorklogs(startDate, endDate)
+
     return {
         timeEntries,
         currentTimeEntry,
@@ -40,5 +42,6 @@ export function useTimeEntry() {
         updateTimeEntry,
         deleteTimeEntry,
         syncTimeEntryToJira,
+        pullWorklogs,
     }
 }

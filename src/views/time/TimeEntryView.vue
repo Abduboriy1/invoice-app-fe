@@ -8,7 +8,8 @@ import TimeEntryModal from '@/components/time/TimeEntryModal.vue'
 import ThreeColumnLayout from "@/layouts/ThreeColumnLayout.vue"
 
 
-const {timeEntries, loading, error, fetchTimeEntries, deleteTimeEntry, syncTimeEntryToJira} = useTimeEntry()
+const {timeEntries, loading, error, fetchTimeEntries, deleteTimeEntry, syncTimeEntryToJira, pullWorklogs} = useTimeEntry()
+const syncing = ref(false)
 const toast = useToast()
 
 const showCreateModal = ref(false)
@@ -92,6 +93,23 @@ async function deleteEntry(id: string) {
     }
 }
 
+async function syncFromJira() {
+    if (!filters.value.start_date || !filters.value.end_date) {
+        toast.error('Please set start and end dates before syncing')
+        return
+    }
+    syncing.value = true
+    try {
+        await pullWorklogs(filters.value.start_date, filters.value.end_date)
+        toast.success('Worklogs synced from Jira!')
+        await fetchTimeEntries({start_date: filters.value.start_date, end_date: filters.value.end_date})
+    } catch (e: any) {
+        toast.error(e.response?.data?.message || 'Failed to sync worklogs from Jira')
+    } finally {
+        syncing.value = false
+    }
+}
+
 async function syncToJira(entry: TimeEntry) {
     if (!entry.id) return
 
@@ -126,6 +144,13 @@ onMounted(() => {
                     @click="showCreateModal = true"
                 >
                     Add Time Entry
+                </button>
+                <button
+                    :disabled="syncing"
+                    class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:w-auto disabled:opacity-50"
+                    @click="syncFromJira"
+                >
+                    {{ syncing ? 'Syncing...' : 'Sync from Jira' }}
                 </button>
             </div>
         </template>
@@ -238,20 +263,20 @@ onMounted(() => {
                                             {{ entry.jira_issue_key || '-' }}
                                         </td>
                                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                    <span
-                        :class="entry.is_billable ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
-                        class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
-                    >
-                      {{ entry.is_billable ? 'Yes' : 'No' }}
-                    </span>
+                                            <span
+                                                :class="entry.is_billable ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+                                                class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
+                                            >
+                                                {{ entry.is_billable ? 'Yes' : 'No' }}
+                                            </span>
                                         </td>
                                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                    <span
-                        :class="entry.invoiced ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'"
-                        class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
-                    >
-                      {{ entry.invoiced ? 'Invoiced' : 'Pending' }}
-                    </span>
+                                            <span
+                                                :class="entry.invoice_id ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'"
+                                                class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
+                                            >
+                                                {{ entry.invoice_id ? 'Invoiced' : 'Pending' }}
+                                            </span>
                                         </td>
                                         <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                                             <button
@@ -287,29 +312,6 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <!-- Summary -->
-                <div v-if="timeEntries.length > 0" class="mt-6 bg-white shadow-sm rounded-lg p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Summary</h3>
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                        <div>
-                            <p class="text-sm text-gray-500">Total Hours</p>
-                            <p class="mt-1 text-2xl font-semibold text-gray-900">{{ formatDuration(totalDuration) }}</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Billable Hours</p>
-                            <p class="mt-1 text-2xl font-semibold text-green-600">{{
-                                    formatDuration(billableDuration)
-                                }}</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Non-billable Hours</p>
-                            <p class="mt-1 text-2xl font-semibold text-gray-600">{{
-                                    formatDuration(nonBillableDuration)
-                                }}</p>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Create/Edit Modal -->
                 <TimeEntryModal
                     v-if="showCreateModal || editingEntry"
@@ -317,6 +319,31 @@ onMounted(() => {
                     @close="closeModal"
                     @submit="handleSubmit"
                 />
+            </div>
+        </template>
+
+        <template #right>
+            <!-- Summary -->
+            <div v-if="timeEntries.length > 0" class="bg-white shadow-sm rounded-lg p-6 flex-col">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Summary</h3>
+
+                <div>
+                    <p class="text-sm text-gray-500">Total Hours</p>
+                    <p class="mt-1 text-2xl font-semibold text-gray-900">{{ formatDuration(totalDuration) }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Billable Hours</p>
+                    <p class="mt-1 text-2xl font-semibold text-green-600">{{
+                            formatDuration(billableDuration)
+                        }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Non-billable Hours</p>
+                    <p class="mt-1 text-2xl font-semibold text-gray-600">{{
+                            formatDuration(nonBillableDuration)
+                        }}</p>
+                </div>
+
             </div>
         </template>
     </ThreeColumnLayout>

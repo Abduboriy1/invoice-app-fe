@@ -116,6 +116,19 @@ export const useTimeEntryStore = defineStore('timeEntry', () => {
         }
     }
 
+    async function pullWorklogs(startDate: string, endDate: string) {
+        loading.value = true
+        error.value = null
+        try {
+            await timeEntryService.pullWorklogs(startDate, endDate)
+        } catch (e: any) {
+            error.value = e.response?.data?.error || e.message
+            throw e
+        } finally {
+            loading.value = false
+        }
+    }
+
     return {
         timeEntries,
         currentTimeEntry,
@@ -127,5 +140,6 @@ export const useTimeEntryStore = defineStore('timeEntry', () => {
         updateTimeEntry,
         deleteTimeEntry,
         syncToJira,
+        pullWorklogs,
     }
 })
