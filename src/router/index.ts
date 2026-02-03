@@ -57,6 +57,16 @@ const router = createRouter({
                     name: 'time-entries',
                     component: () => import('@/views/time/TimeEntryView.vue'),
                 },
+                {
+                    path: 'projects',
+                    name: 'projects',
+                    component: () => import('@/views/projects/ProjectListView.vue'),
+                },
+                {
+                    path: 'projects/:id',
+                    name: 'project-detail',
+                    component: () => import('@/views/projects/ProjectDetailView.vue'),
+                },
             ],
         },
     ],
