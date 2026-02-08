@@ -48,10 +48,10 @@ export const useProjectStore = defineStore('project', () => {
         }
     }
 
-    async function fetchWorklogs(epicKey: string) {
+    async function fetchWorklogs(epicKey: string, month?: string) {
         error.value = null
         try {
-            worklogs.value = await projectService.getWorklogs(epicKey)
+            worklogs.value = await projectService.getWorklogs(epicKey, month)
         } catch (e: any) {
             error.value = e.response?.data?.error || e.message
             throw e

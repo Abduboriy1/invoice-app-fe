@@ -19,7 +19,7 @@ export function useProject() {
     const fetchComments = (id: string, excludeBots?: boolean) =>
         store.fetchComments(id, excludeBots)
 
-    const fetchWorklogs = (epicKey: string) => store.fetchWorklogs(epicKey)
+    const fetchWorklogs = (epicKey: string, month?: string) => store.fetchWorklogs(epicKey, month)
 
     return {
         projects,

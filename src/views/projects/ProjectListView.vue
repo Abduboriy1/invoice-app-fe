@@ -129,16 +129,6 @@ onMounted(() => {
                                 </option>
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700" for="author-filter">Comment Author</label>
-                            <input
-                                id="author-filter"
-                                v-model="filters.author"
-                                type="text"
-                                placeholder="Filter by author"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                            />
-                        </div>
                         <div class="flex items-end">
                             <button
                                 class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"

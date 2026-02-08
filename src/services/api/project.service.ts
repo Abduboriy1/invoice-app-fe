@@ -24,8 +24,9 @@ export const projectService = {
         return response.data
     },
 
-    async getWorklogs(epicKey: string): Promise<WorklogResponse> {
-        const response = await apiClient.get<WorklogResponse>(`/jira/epic/${epicKey}/worklogs`)
+    async getWorklogs(epicKey: string, month?: string): Promise<WorklogResponse> {
+        const params = month ? { month } : undefined
+        const response = await apiClient.get<WorklogResponse>(`/jira/epic/${epicKey}/worklogs`, { params })
         return response.data
     },
 }

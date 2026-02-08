@@ -5,7 +5,14 @@
             <p class="mt-1 text-sm text-gray-600">Fill in the details below to create a new invoice.</p>
         </div>
 
+        <MonthlyDataFetcher
+            class="mb-6"
+            @data-fetched="handleDataFetched"
+        />
+
         <InvoiceForm
+            :key="formKey"
+            :initial-data="initialFormData"
             :loading="loading"
             @submit="handleSubmit"
             @cancel="handleCancel"
@@ -19,12 +26,20 @@ import {useRouter} from 'vue-router'
 import {useInvoice} from '@/composables/useInvoice'
 import {useToast} from 'vue-toastification'
 import InvoiceForm from '@/components/invoice/InvoiceForm.vue'
-import type {InvoiceCreateRequest} from '@/types/invoice'
+import MonthlyDataFetcher from '@/components/invoice/MonthlyDataFetcher.vue'
+import type {InvoiceCreateRequest, InvoiceLineItem} from '@/types/invoice'
 
 const router = useRouter()
 const {createInvoice} = useInvoice()
 const toast = useToast()
 const loading = ref(false)
+const formKey = ref(0)
+const initialFormData = ref<Partial<InvoiceCreateRequest>>({})
+
+function handleDataFetched(lineItems: InvoiceLineItem[]) {
+    initialFormData.value = { ...initialFormData.value, line_items: lineItems }
+    formKey.value++
+}
 
 async function handleSubmit(data: InvoiceCreateRequest) {
     loading.value = true
