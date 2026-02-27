@@ -1,3 +1,19 @@
+<script setup lang="ts">
+import {useRouter} from 'vue-router'
+import {useAuthStore} from '@/stores/auth'
+import {useToast} from 'vue-toastification'
+
+const router = useRouter()
+const authStore = useAuthStore()
+const toast = useToast()
+
+function handleLogout() {
+    authStore.logout()
+    toast.info('Logged out successfully')
+    router.push('/login')
+}
+</script>
+
 <template>
     <div class="min-h-screen bg-gray-50">
         <!-- Navigation -->
@@ -22,6 +38,13 @@
                                 active-class="border-primary-500 text-gray-900"
                             >
                                 Invoices
+                            </router-link>
+                            <router-link
+                                active-class="border-primary-500 text-gray-900"
+                                class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                                to="/clients"
+                            >
+                                Clients
                             </router-link>
                             <router-link
                                 to="/time-tracking"
@@ -49,7 +72,12 @@
                     <div class="flex items-center">
                         <div class="ml-3 relative">
                             <div class="flex items-center space-x-4">
-                                <span class="text-sm text-gray-700">{{ authStore.user?.name || authStore.user?.email }}</span>
+                                <router-link
+                                    to="/settings"
+                                    class="text-sm text-gray-700 hover:text-gray-900"
+                                >
+                                    {{ authStore.user?.full_name || authStore.user?.email }}
+                                </router-link>
                                 <button
                                     @click="handleLogout"
                                     class="text-sm text-gray-500 hover:text-gray-700"
@@ -69,19 +97,3 @@
         </main>
     </div>
 </template>
-
-<script setup lang="ts">
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import { useToast } from 'vue-toastification'
-
-const router = useRouter()
-const authStore = useAuthStore()
-const toast = useToast()
-
-function handleLogout() {
-    authStore.logout()
-    toast.info('Logged out successfully')
-    router.push('/login')
-}
-</script>

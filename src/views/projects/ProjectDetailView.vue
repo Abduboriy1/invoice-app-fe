@@ -1,14 +1,14 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useProject } from '@/composables/useProject'
-import { ProjectStatus, type Worklog } from '@/types/project'
-import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
+import {computed, onMounted, ref} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
+import {useProject} from '@/composables/useProject'
+import {ProjectStatus, type Worklog} from '@/types/project'
+import {endOfMonth, format, isWithinInterval, parseISO, startOfMonth} from 'date-fns'
 import ThreeColumnLayout from '@/layouts/ThreeColumnLayout.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { currentProject, comments, worklogs, loading, error, fetchProject, fetchComments, fetchWorklogs } = useProject()
+const {currentProject, comments, worklogs, loading, error, fetchProject, fetchComments, fetchWorklogs} = useProject()
 
 const excludeBots = ref(false)
 const projectId = route.params.id as string
@@ -72,7 +72,7 @@ const filteredWorklogs = computed(() => {
     for (const [bucket, logs] of Object.entries(worklogs.value.buckets)) {
         const bucketLogs = logs.filter((log) => {
             const logDate = parseISO(log.started)
-            const inMonth = isWithinInterval(logDate, { start: monthStart, end: monthEnd })
+            const inMonth = isWithinInterval(logDate, {start: monthStart, end: monthEnd})
             const byAuthor = !authorFilter.value || log.author === authorFilter.value
             return inMonth && byAuthor
         })
@@ -187,8 +187,8 @@ onMounted(async () => {
                                     <label class="text-sm text-gray-600">Month:</label>
                                     <input
                                         v-model="selectedMonth"
-                                        type="month"
                                         class="rounded border-gray-300 text-sm focus:ring-primary-500 focus:border-primary-500"
+                                        type="month"
                                     />
                                 </div>
                                 <div class="flex items-center gap-2">
@@ -209,7 +209,9 @@ onMounted(async () => {
                         <!-- Total time -->
                         <div class="mb-4 p-3 bg-gray-50 rounded-lg">
                             <span class="text-sm text-gray-600">Total time: </span>
-                            <span class="text-sm font-semibold text-gray-900">{{ formatTotalTime(totalFilteredSeconds) }}</span>
+                            <span class="text-sm font-semibold text-gray-900">{{
+                                    formatTotalTime(totalFilteredSeconds)
+                                }}</span>
                         </div>
 
                         <div v-if="Object.keys(filteredWorklogs).length === 0" class="text-center py-8">
@@ -219,7 +221,8 @@ onMounted(async () => {
                         <div v-else class="space-y-6">
                             <div v-for="(logs, bucket) in filteredWorklogs" :key="bucket">
                                 <h4 class="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                                    <span class="inline-flex rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-800">
+                                    <span
+                                        class="inline-flex rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-800">
                                         {{ bucket }}
                                     </span>
                                     <span class="text-gray-400 text-xs">
@@ -235,10 +238,14 @@ onMounted(async () => {
                                         <div class="flex items-center justify-between">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-sm font-medium text-gray-900">{{ log.author }}</span>
-                                                <span class="text-xs text-gray-400">{{ formatWorklogDate(log.started) }}</span>
+                                                <span class="text-xs text-gray-400">{{
+                                                        formatWorklogDate(log.started)
+                                                    }}</span>
                                                 <span class="text-xs text-gray-500 font-mono">{{ log.issueKey }}</span>
                                             </div>
-                                            <span class="text-sm font-semibold text-primary-600">{{ log.timeSpent }}</span>
+                                            <span class="text-sm font-semibold text-primary-600">{{
+                                                    log.timeSpent
+                                                }}</span>
                                         </div>
                                         <p v-if="log.comment" class="mt-1 text-sm text-gray-600">{{ log.comment }}</p>
                                     </div>
@@ -253,9 +260,9 @@ onMounted(async () => {
                             <h3 class="text-lg font-medium text-gray-900">Notes &amp; Comments</h3>
                             <label class="inline-flex items-center cursor-pointer">
                                 <input
-                                    type="checkbox"
                                     :checked="excludeBots"
                                     class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                    type="checkbox"
                                     @change="toggleBotFilter"
                                 />
                                 <span class="ml-2 text-sm text-gray-600">Hide bot comments</span>
@@ -268,28 +275,39 @@ onMounted(async () => {
 
                         <div v-else class="space-y-4">
                             <template v-for="comment in comments" :key="comment.id">
-                            <div
-                                v-if="comment.author !== 'Fast Track'"
-                                class="border-l-4 pl-4 py-2"
-                                :class="comment.author_is_bot ? 'border-gray-300' : 'border-primary-400'"
-                            >
+                                <div
+                                    v-if="comment.author !== 'Fast Track'"
+                                    :class="comment.author_is_bot ? 'border-gray-300' : 'border-primary-400'"
+                                    class="border-l-4 pl-4 py-2"
+                                >
 
-                                <div class="flex items-center gap-2">
-                                    <span class="text-sm font-medium text-gray-900">{{ comment.author }}</span>
-                                    <span
-                                        v-if="comment.author_is_bot"
-                                        class="inline-flex rounded-full bg-gray-100 px-2 text-xs font-medium text-gray-600"
-                                    >
-                                        bot
-                                    </span>
-                                    <span class="text-xs text-gray-400">{{ formatCommentDate(comment.created_at) }}</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm font-medium text-gray-900">{{ comment.author }}</span>
+                                        <span
+                                            v-if="comment.author_is_bot"
+                                            class="inline-flex rounded-full bg-gray-100 px-2 text-xs font-medium text-gray-600"
+                                        >
+                                            bot
+                                        </span>
+                                        <span class="text-xs text-gray-400">{{
+                                                formatCommentDate(comment.created_at)
+                                            }}</span>
+                                    </div>
+                                    <p class="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{{ comment.body }}</p>
                                 </div>
-                                <p class="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{{ comment.body }}</p>
-                            </div>
                             </template>
                         </div>
                     </div>
                 </template>
+
+                <!-- Error -->
+                <div v-if="loading" class="text-center py-12">
+                    <p class="text-gray-500">Loading project...</p>
+                </div>
+
+                <div v-else-if="error" class="rounded-md bg-red-50 p-4">
+                    <p class="text-sm text-red-800">{{ error }}</p>
+                </div>
             </div>
         </template>
 

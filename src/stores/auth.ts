@@ -1,12 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiClient } from '@/services/api/client'
-
-interface User {
-    id: string
-    email: string
-    name: string
-}
+import { userService } from '@/services/api/user.service'
+import type { UserProfile } from '@/types/user'
 
 interface LoginCredentials {
     email: string
@@ -19,7 +15,7 @@ interface RegisterData extends LoginCredentials {
 
 export const useAuthStore = defineStore('auth', () => {
     const token = ref<string | null>(localStorage.getItem('auth_token'))
-    const user = ref<User | null>(null)
+    const user = ref<UserProfile | null>(null)
 
     const isAuthenticated = computed(() => !!token.value)
 
@@ -38,6 +34,14 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('auth_token', response.data.token)
     }
 
+    async function fetchProfile() {
+        try {
+            user.value = await userService.getProfile()
+        } catch (e) {
+            // If profile fetch fails, don't break the app
+        }
+    }
+
     function logout() {
         token.value = null
         user.value = null
@@ -50,6 +54,7 @@ export const useAuthStore = defineStore('auth', () => {
         isAuthenticated,
         login,
         register,
+        fetchProfile,
         logout,
     }
 })

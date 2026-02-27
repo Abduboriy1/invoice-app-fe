@@ -13,6 +13,7 @@ export interface MonthlyInvoiceEpic {
     status: string
     buckets: Record<string, WorklogEntry[]>
     total_hours: number
+    application: string
 }
 
 export interface MonthlyInvoiceDataResponse {

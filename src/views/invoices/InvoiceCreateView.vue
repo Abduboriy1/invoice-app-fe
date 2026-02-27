@@ -1,5 +1,5 @@
 <template>
-    <div class="px-4 sm:px-0">
+    <div class="px-4 sm:px-0 m-12">
         <div class="mb-6">
             <h1 class="text-2xl font-semibold text-gray-900">Create Invoice</h1>
             <p class="mt-1 text-sm text-gray-600">Fill in the details below to create a new invoice.</p>

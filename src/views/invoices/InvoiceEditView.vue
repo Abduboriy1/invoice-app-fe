@@ -1,26 +1,4 @@
-<template>
-    <div class="px-4 sm:px-0">
-        <div class="mb-6">
-            <h1 class="text-2xl font-semibold text-gray-900">Edit Invoice</h1>
-            <p class="mt-1 text-sm text-gray-600">Update the invoice details below.</p>
-        </div>
-
-        <div v-if="loading && !currentInvoice" class="text-center py-12">
-            <p class="text-gray-500">Loading invoice...</p>
-        </div>
-
-        <div v-else-if="currentInvoice">
-            <InvoiceForm
-                :initial-data="formData"
-                :loading="saving"
-                @submit="handleSubmit"
-                @cancel="handleCancel"
-            />
-        </div>
-    </div>
-</template>
-
-<script setup lang="ts">
+<script lang="ts" setup>
 import {computed, onMounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useInvoice} from '@/composables/useInvoice'
@@ -77,3 +55,25 @@ onMounted(() => {
     }
 })
 </script>
+
+<template>
+    <div class="px-4 sm:px-0">
+        <div class="mb-6">
+            <h1 class="text-2xl font-semibold text-gray-900">Edit Invoice</h1>
+            <p class="mt-1 text-sm text-gray-600">Update the invoice details below.</p>
+        </div>
+
+        <div v-if="loading && !currentInvoice" class="text-center py-12">
+            <p class="text-gray-500">Loading invoice...</p>
+        </div>
+
+        <div v-else-if="currentInvoice">
+            <InvoiceForm
+                :initial-data="formData"
+                :loading="saving"
+                @cancel="handleCancel"
+                @submit="handleSubmit"
+            />
+        </div>
+    </div>
+</template>

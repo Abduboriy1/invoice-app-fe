@@ -38,7 +38,8 @@ const nonBillableDuration = computed(() => {
 })
 
 function formatDate(date: string) {
-    return format(new Date(date), 'MMM dd, yyyy')
+    const d = new Date(date)
+    return format(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()), 'MMM dd, yyyy')
 }
 
 function formatDuration(decimal: number): string {

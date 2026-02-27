@@ -1,3 +1,46 @@
+<script lang="ts" setup>
+import {computed, onMounted, ref} from 'vue'
+import {useInvoice} from '@/composables/useInvoice'
+import {InvoiceStatus} from '@/types/invoice'
+import ThreeColumnLayout from "@/layouts/ThreeColumnLayout.vue";
+import TimeEntryChart from '@/components/dashboard/TimeEntryChart.vue'
+
+const {invoices, fetchInvoices} = useInvoice()
+const chartTotalHours = ref(0)
+
+const stats = computed(() => {
+    const totalInvoices = invoices.value.length
+    const totalPaid = invoices.value
+        .filter(inv => inv.status === InvoiceStatus.PAID)
+        .reduce((sum, inv) => sum + inv.total, 0)
+    const totalPending = invoices.value
+        .filter(inv => inv.status === InvoiceStatus.SENT)
+        .reduce((sum, inv) => sum + inv.total, 0)
+    const totalHours = chartTotalHours.value
+
+    return {totalInvoices, totalPaid, totalPending, totalHours}
+})
+
+const recentInvoices = computed(() => {
+    return invoices.value.slice(0, 5)
+})
+
+function getStatusClass(status: InvoiceStatus) {
+    const classes: Record<InvoiceStatus, string> = {
+        [InvoiceStatus.DRAFT]: 'bg-gray-100 text-gray-800',
+        [InvoiceStatus.SENT]: 'bg-blue-100 text-blue-800',
+        [InvoiceStatus.PAID]: 'bg-green-100 text-green-800',
+        [InvoiceStatus.OVERDUE]: 'bg-red-100 text-red-800',
+        [InvoiceStatus.CANCELLED]: 'bg-gray-100 text-gray-800',
+    }
+    return classes[status] || 'bg-gray-100 text-gray-800'
+}
+
+onMounted(() => {
+    fetchInvoices()
+})
+</script>
+
 <template>
     <ThreeColumnLayout>
         <template #center>
@@ -88,12 +131,17 @@
                                 <div class="ml-5 w-0 flex-1">
                                     <dl>
                                         <dt class="text-sm font-medium text-gray-500 truncate">Hours Tracked</dt>
-                                        <dd class="text-lg font-semibold text-gray-900">{{ stats.totalHours }}</dd>
+                                        <dd class="text-lg font-semibold text-gray-900">{{ stats.totalHours.toFixed(1) }}h</dd>
                                     </dl>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Yearly Hours Chart -->
+                <div class="mt-8">
+                    <TimeEntryChart @total-hours="chartTotalHours = $event" />
                 </div>
 
                 <!-- Recent Invoices -->
@@ -118,10 +166,10 @@
                                                 {{ invoice.invoice_number || `INV-${invoice.id}` }}
                                             </p>
                                             <div class="ml-2 flex-shrink-0 flex">
-                    <span :class="getStatusClass(invoice.status)"
-                          class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
-                      {{ invoice.status }}
-                    </span>
+                                                <span :class="getStatusClass(invoice.status)"
+                                                      class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
+                                                    {{ invoice.status }}
+                                                </span>
                                             </div>
                                         </div>
                                         <div class="mt-2 sm:flex sm:justify-between">
@@ -149,44 +197,3 @@
         </template>
     </ThreeColumnLayout>
 </template>
-
-<script setup lang="ts">
-import {computed, onMounted} from 'vue'
-import {useInvoice} from '@/composables/useInvoice'
-import {InvoiceStatus} from '@/types/invoice'
-import ThreeColumnLayout from "@/layouts/ThreeColumnLayout.vue";
-
-const {invoices, fetchInvoices} = useInvoice()
-
-const stats = computed(() => {
-    const totalInvoices = invoices.value.length
-    const totalPaid = invoices.value
-        .filter(inv => inv.status === InvoiceStatus.PAID)
-        .reduce((sum, inv) => sum + inv.total, 0)
-    const totalPending = invoices.value
-        .filter(inv => inv.status === InvoiceStatus.SENT)
-        .reduce((sum, inv) => sum + inv.total, 0)
-    const totalHours = 0 // This would come from time entries
-
-    return {totalInvoices, totalPaid, totalPending, totalHours}
-})
-
-const recentInvoices = computed(() => {
-    return invoices.value.slice(0, 5)
-})
-
-function getStatusClass(status: InvoiceStatus) {
-    const classes: Record<InvoiceStatus, string> = {
-        [InvoiceStatus.DRAFT]: 'bg-gray-100 text-gray-800',
-        [InvoiceStatus.SENT]: 'bg-blue-100 text-blue-800',
-        [InvoiceStatus.PAID]: 'bg-green-100 text-green-800',
-        [InvoiceStatus.OVERDUE]: 'bg-red-100 text-red-800',
-        [InvoiceStatus.CANCELLED]: 'bg-gray-100 text-gray-800',
-    }
-    return classes[status] || 'bg-gray-100 text-gray-800'
-}
-
-onMounted(() => {
-    fetchInvoices()
-})
-</script>

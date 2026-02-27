@@ -1,13 +1,13 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useProject } from '@/composables/useProject'
-import { ProjectStatus } from '@/types/project'
-import { format } from 'date-fns'
+import {computed, onMounted, ref} from 'vue'
+import {useRouter} from 'vue-router'
+import {useProject} from '@/composables/useProject'
+import {ProjectStatus} from '@/types/project'
+import {format} from 'date-fns'
 import ThreeColumnLayout from '@/layouts/ThreeColumnLayout.vue'
 
 const router = useRouter()
-const { projects, loading, error, fetchProjects } = useProject()
+const {projects, loading, error, fetchProjects} = useProject()
 
 const filters = ref({
     month: format(new Date(), 'yyyy-MM'),
@@ -24,12 +24,12 @@ const totalSpentHours = computed(() =>
 )
 
 const statusOptions = [
-    { value: '', label: 'All' },
-    { value: ProjectStatus.READY_FOR_DEV, label: 'Ready for Dev' },
-    { value: ProjectStatus.DEV, label: 'Dev' },
-    { value: ProjectStatus.READY_FOR_QA, label: 'Ready for QA' },
-    { value: ProjectStatus.QA, label: 'QA' },
-    { value: ProjectStatus.DEPLOYED, label: 'Deployed' },
+    {value: '', label: 'All'},
+    {value: ProjectStatus.READY_FOR_DEV, label: 'Ready for Dev'},
+    {value: ProjectStatus.DEV, label: 'Dev'},
+    {value: ProjectStatus.READY_FOR_QA, label: 'Ready for QA'},
+    {value: ProjectStatus.QA, label: 'QA'},
+    {value: ProjectStatus.DEPLOYED, label: 'Deployed'},
 ]
 
 function statusColor(status: ProjectStatus): string {
@@ -53,12 +53,22 @@ function statusLabel(status: ProjectStatus): string {
     return statusOptions.find((o) => o.value === status)?.label ?? status
 }
 
-function progressPercent(project: { approved_hours: number; hours_spent: number, dev_hours: number, dle_hours: number }): number {
+function progressPercent(project: {
+    approved_hours: number;
+    hours_spent: number,
+    dev_hours: number,
+    dle_hours: number
+}): number {
     if (project.dev_hours <= 0) return 0
     return Math.min(100, Math.round((project.dev_hours / project.dle_hours) * 100))
 }
 
-function progressColor(project: { approved_hours: number; hours_spent: number, dev_hours: number, dle_hours: number }): string {
+function progressColor(project: {
+    approved_hours: number;
+    hours_spent: number,
+    dev_hours: number,
+    dle_hours: number
+}): string {
     const pct = progressPercent(project)
     if (pct >= 90) return 'bg-red-500'
     if (pct >= 70) return 'bg-yellow-500'
@@ -91,7 +101,7 @@ function applyFilters() {
 }
 
 function viewProject(id: string) {
-    router.push({ name: 'project-detail', params: { id } })
+    router.push({name: 'project-detail', params: {id}})
 }
 
 onMounted(() => {
@@ -113,8 +123,8 @@ onMounted(() => {
                             <input
                                 id="month-filter"
                                 v-model="filters.month"
-                                type="month"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                type="month"
                             />
                         </div>
                         <div>
@@ -157,59 +167,73 @@ onMounted(() => {
                             <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                                 <table class="min-w-full divide-y divide-gray-300">
                                     <thead class="bg-gray-50">
-                                        <tr>
-                                            <th class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6" scope="col">Prio</th>
-                                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900" scope="col">Name</th>
-                                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900" scope="col">Application</th>
-                                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900" scope="col">Jira Key</th>
-                                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900" scope="col">Status</th>
-                                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900" scope="col">Hours</th>
-                                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900" scope="col">Progress</th>
-                                        </tr>
+                                    <tr>
+                                        <th class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
+                                            scope="col">Prio
+                                        </th>
+                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                                            scope="col">Name
+                                        </th>
+                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                                            scope="col">Application
+                                        </th>
+                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                                            scope="col">Jira Key
+                                        </th>
+                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                                            scope="col">Status
+                                        </th>
+                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                                            scope="col">Hours
+                                        </th>
+                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                                            scope="col">Progress
+                                        </th>
+                                    </tr>
                                     </thead>
                                     <tbody class="divide-y divide-gray-200 bg-white">
-                                        <tr
-                                            v-for="project in sortedProjects"
-                                            :key="project.id"
-                                            class="cursor-pointer hover:bg-gray-50"
-                                            @click="viewProject(project.id)"
-                                        >
-                                            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500 sm:pl-6">
-                                                {{ parsePriority(project.priority) ?? '-' }}
-                                            </td>
-                                            <td class="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
-                                                {{ project.name }}
-                                            </td>
-                                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                                {{ project.application || '-' }}
-                                            </td>
-                                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                                {{ project.jira_epic_key }}
-                                            </td>
-                                            <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                                <span
-                                                    :class="statusColor(project.status)"
-                                                    class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
-                                                >
-                                                    {{ statusLabel(project.status) }}
-                                                </span>
-                                            </td>
-                                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                                {{ project.dev_hours }} / {{ project.dle_hours }}h
-                                            </td>
-                                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                                <div class="flex items-center gap-2">
-                                                    <div class="w-24 bg-gray-200 rounded-full h-2">
-                                                        <div
-                                                            :class="progressColor(project)"
-                                                            :style="{ width: progressPercent(project) + '%' }"
-                                                            class="h-2 rounded-full"
-                                                        ></div>
-                                                    </div>
-                                                    <span class="text-xs">{{ progressPercent(project) }}%</span>
+                                    <tr
+                                        v-for="project in sortedProjects"
+                                        :key="project.id"
+                                        class="cursor-pointer hover:bg-gray-50"
+                                        @click="viewProject(project.id)"
+                                    >
+                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500 sm:pl-6">
+                                            {{ parsePriority(project.priority) ?? '-' }}
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
+                                            {{ project.name }}
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                            {{ project.application || '-' }}
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                            {{ project.jira_epic_key }}
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm">
+                                            <span
+                                                :class="statusColor(project.status)"
+                                                class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
+                                            >
+                                                {{ statusLabel(project.status) }}
+                                            </span>
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                            {{ project.dev_hours }} / {{ project.dle_hours }}h
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-24 bg-gray-200 rounded-full h-2">
+                                                    <div
+                                                        :class="progressColor(project)"
+                                                        :style="{ width: progressPercent(project) + '%' }"
+                                                        class="h-2 rounded-full"
+                                                    ></div>
                                                 </div>
-                                            </td>
-                                        </tr>
+                                                <span class="text-xs">{{ progressPercent(project) }}%</span>
+                                            </div>
+                                        </td>
+                                    </tr>
                                     </tbody>
                                 </table>
 

@@ -17,6 +17,10 @@
     </div>
 </template>
 
-<script setup>
-// Optional: Add props if you want to customize styling
+<script lang="ts" setup>
+defineSlots<{
+    left(props: {}): any
+    center(props: {}): any
+    right(props: {}): any
+}>()
 </script>

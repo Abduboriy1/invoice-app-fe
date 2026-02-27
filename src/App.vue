@@ -3,5 +3,11 @@
 </template>
 
 <script setup lang="ts">
-// App entry point
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+
+if (authStore.isAuthenticated) {
+  authStore.fetchProfile()
+}
 </script>

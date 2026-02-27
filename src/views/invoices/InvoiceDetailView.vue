@@ -1,3 +1,61 @@
+<script lang="ts" setup>
+import {onMounted} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
+import {useInvoice} from '@/composables/useInvoice'
+import {useToast} from 'vue-toastification'
+import {InvoiceStatus} from '@/types/invoice'
+import {format} from 'date-fns'
+
+const route = useRoute()
+const router = useRouter()
+const {currentInvoice, loading, error, fetchInvoice, sendInvoice, downloadPDF} = useInvoice()
+const toast = useToast()
+
+function formatDate(date: string) {
+    return format(new Date(date), 'MMMM dd, yyyy')
+}
+
+function getStatusClass(status: InvoiceStatus) {
+    const classes: Record<InvoiceStatus, string> = {
+        [InvoiceStatus.DRAFT]: 'bg-gray-100 text-gray-800',
+        [InvoiceStatus.SENT]: 'bg-blue-100 text-blue-800',
+        [InvoiceStatus.PAID]: 'bg-green-100 text-green-800',
+        [InvoiceStatus.OVERDUE]: 'bg-red-100 text-red-800',
+        [InvoiceStatus.CANCELLED]: 'bg-gray-100 text-gray-800',
+    }
+    return classes[status] || 'bg-gray-100 text-gray-800'
+}
+
+async function handleSendInvoice() {
+    if (!currentInvoice.value?.id) return
+
+    try {
+        await sendInvoice(currentInvoice.value.id)
+        toast.success('Invoice sent successfully!')
+    } catch (e: any) {
+        toast.error(e.response?.data?.message || 'Failed to send invoice')
+    }
+}
+
+async function handleDownloadPDF() {
+    if (!currentInvoice.value?.id) return
+
+    try {
+        await downloadPDF(currentInvoice.value.id)
+        toast.success('PDF downloaded!')
+    } catch (e: any) {
+        toast.error(e.response?.data?.message || 'Failed to download PDF')
+    }
+}
+
+onMounted(() => {
+    const id = route.params.id as string
+    if (id) {
+        fetchInvoice(id)
+    }
+})
+</script>
+
 <template>
     <div class="px-4 sm:px-0">
         <div v-if="loading" class="text-center py-12">
@@ -21,15 +79,15 @@
                 </div>
                 <div class="flex space-x-3">
                     <button
-                        @click="handleDownloadPDF"
                         class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        @click="handleDownloadPDF"
                     >
                         Download PDF
                     </button>
                     <button
                         v-if="currentInvoice.status === InvoiceStatus.DRAFT"
-                        @click="handleSendInvoice"
                         class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+                        @click="handleSendInvoice"
                     >
                         Send Invoice
                     </button>
@@ -46,10 +104,10 @@
             <div class="bg-white shadow-sm rounded-lg p-8">
                 <!-- Status Badge -->
                 <div class="mb-6">
-          <span :class="getStatusClass(currentInvoice.status)"
-                class="inline-flex rounded-full px-3 py-1 text-sm font-semibold">
-            {{ currentInvoice.status }}
-          </span>
+                    <span :class="getStatusClass(currentInvoice.status)"
+                          class="inline-flex rounded-full px-3 py-1 text-sm font-semibold">
+                        {{ currentInvoice.status }}
+                    </span>
                 </div>
 
                 <!-- Invoice Info Grid -->
@@ -123,61 +181,3 @@
         </div>
     </div>
 </template>
-
-<script setup lang="ts">
-import {onMounted} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
-import {useInvoice} from '@/composables/useInvoice'
-import {useToast} from 'vue-toastification'
-import {InvoiceStatus} from '@/types/invoice'
-import {format} from 'date-fns'
-
-const route = useRoute()
-const router = useRouter()
-const {currentInvoice, loading, error, fetchInvoice, sendInvoice, downloadPDF} = useInvoice()
-const toast = useToast()
-
-function formatDate(date: string) {
-    return format(new Date(date), 'MMMM dd, yyyy')
-}
-
-function getStatusClass(status: InvoiceStatus) {
-    const classes: Record<InvoiceStatus, string> = {
-        [InvoiceStatus.DRAFT]: 'bg-gray-100 text-gray-800',
-        [InvoiceStatus.SENT]: 'bg-blue-100 text-blue-800',
-        [InvoiceStatus.PAID]: 'bg-green-100 text-green-800',
-        [InvoiceStatus.OVERDUE]: 'bg-red-100 text-red-800',
-        [InvoiceStatus.CANCELLED]: 'bg-gray-100 text-gray-800',
-    }
-    return classes[status] || 'bg-gray-100 text-gray-800'
-}
-
-async function handleSendInvoice() {
-    if (!currentInvoice.value?.id) return
-
-    try {
-        await sendInvoice(currentInvoice.value.id)
-        toast.success('Invoice sent successfully!')
-    } catch (e: any) {
-        toast.error(e.response?.data?.message || 'Failed to send invoice')
-    }
-}
-
-async function handleDownloadPDF() {
-    if (!currentInvoice.value?.id) return
-
-    try {
-        await downloadPDF(currentInvoice.value.id)
-        toast.success('PDF downloaded!')
-    } catch (e: any) {
-        toast.error(e.response?.data?.message || 'Failed to download PDF')
-    }
-}
-
-onMounted(() => {
-    const id = route.params.id as string
-    if (id) {
-        fetchInvoice(id)
-    }
-})
-</script>

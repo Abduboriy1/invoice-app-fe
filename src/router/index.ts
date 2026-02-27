@@ -1,5 +1,5 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import {createRouter, createWebHistory} from 'vue-router'
+import {useAuthStore} from '@/stores/auth'
 import LoginView from '@/views/auth/LoginView.vue'
 
 const router = createRouter({
@@ -48,6 +48,11 @@ const router = createRouter({
                     component: () => import('@/views/invoices/InvoiceEditView.vue'),
                 },
                 {
+                    path: 'clients',
+                    name: 'clients',
+                    component: () => import('@/views/clients/ClientListView.vue'),
+                },
+                {
                     path: 'time-tracking',
                     name: 'time-tracking',
                     component: () => import('@/views/time/TimeTrackingView.vue'),
@@ -66,6 +71,11 @@ const router = createRouter({
                     path: 'projects/:id',
                     name: 'project-detail',
                     component: () => import('@/views/projects/ProjectDetailView.vue'),
+                },
+                {
+                    path: 'settings',
+                    name: 'settings',
+                    component: () => import('@/views/settings/SettingsView.vue'),
                 },
             ],
         },

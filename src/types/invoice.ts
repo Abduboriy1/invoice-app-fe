@@ -1,9 +1,5 @@
 export enum InvoiceStatus {
-    DRAFT = 'draft',
-    SENT = 'sent',
-    PAID = 'paid',
-    OVERDUE = 'overdue',
-    CANCELLED = 'cancelled',
+    DRAFT = 'draft', SENT = 'sent', PAID = 'paid', OVERDUE = 'overdue', CANCELLED = 'cancelled',
 }
 
 export interface InvoiceLineItem {
@@ -11,6 +7,7 @@ export interface InvoiceLineItem {
     description: string
     quantity: number
     rate: number
+    application: string
     amount: number
 }
 
@@ -37,6 +34,7 @@ export interface InvoiceCreateRequest {
     client_name: string
     client_email: string
     client_address?: string
+    client_id?: string
     issue_date: string
     due_date: string
     line_items: InvoiceLineItem[]
