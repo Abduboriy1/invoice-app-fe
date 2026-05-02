@@ -62,5 +62,13 @@ export const timeEntryService = {
             start_date: startDate,
             end_date: endDate,
         })
+    },
+
+    async resolveEpics(issueKeys: string[]): Promise<Record<string, { epic_key: string; epic_name: string; epic_status: string }>> {
+        const response = await apiClient.post<{ resolutions: Record<string, { epic_key: string; epic_name: string; epic_status: string }> }>(
+            '/jira/resolve-epics',
+            { issue_keys: issueKeys }
+        )
+        return response.data.resolutions
     }
 }

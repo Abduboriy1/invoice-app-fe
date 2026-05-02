@@ -4,12 +4,13 @@ import {useTimeEntry} from '@/composables/useTimeEntry'
 import {useToast} from 'vue-toastification'
 import {endOfMonth, format, startOfMonth} from 'date-fns'
 import type {TimeEntry} from '@/types/timeEntry'
+import {timeEntryService} from '@/services/api/timeEntry.service'
 import TimeEntryModal from '@/components/time/TimeEntryModal.vue'
 import ThreeColumnLayout from "@/layouts/ThreeColumnLayout.vue"
 
-
 const {timeEntries, loading, error, fetchTimeEntries, deleteTimeEntry, syncTimeEntryToJira, pullWorklogs} = useTimeEntry()
 const syncing = ref(false)
+const resolvingEpics = ref(false)
 const toast = useToast()
 
 const showCreateModal = ref(false)
@@ -21,21 +22,129 @@ const filters = ref({
     is_billable: '',
 })
 
-const totalDuration = computed(() => {
-    return timeEntries.value.reduce((sum, entry) => sum + entry.hours, 0)
+// --- Epic cache (localStorage) ---
+
+const CACHE_KEY = 'jira_epic_cache'
+
+interface EpicInfo {
+    epicKey: string
+    epicName: string
+    epicStatus: string
+}
+
+function readCache(): Record<string, EpicInfo> {
+    try {
+        const raw = localStorage.getItem(CACHE_KEY)
+        return raw ? JSON.parse(raw) : {}
+    } catch {
+        return {}
+    }
+}
+
+function writeCache(updates: Record<string, EpicInfo>) {
+    try {
+        const existing = readCache()
+        localStorage.setItem(CACHE_KEY, JSON.stringify({...existing, ...updates}))
+    } catch {
+        // ignore storage errors
+    }
+}
+
+const epicCache = ref<Record<string, EpicInfo>>(readCache())
+
+async function resolveEpicsForEntries() {
+    const keys = [...new Set(timeEntries.value.map(e => e.jira_issue_key).filter(Boolean) as string[])]
+    const uncached = keys.filter(k => !epicCache.value[k])
+
+    if (uncached.length === 0) return
+
+    resolvingEpics.value = true
+    try {
+        const resolutions = await timeEntryService.resolveEpics(uncached)
+        const updates: Record<string, EpicInfo> = {}
+        for (const [issueKey, res] of Object.entries(resolutions)) {
+            updates[issueKey] = {
+                epicKey: res.epic_key,
+                epicName: res.epic_name,
+                epicStatus: res.epic_status,
+            }
+        }
+        writeCache(updates)
+        epicCache.value = readCache()
+    } catch {
+        // silently skip — grouping falls back to issue key
+    } finally {
+        resolvingEpics.value = false
+    }
+}
+
+// --- Grouping ---
+
+interface EpicGroup {
+    epicKey: string
+    epicName: string
+    epicStatus: string
+    totalHours: number
+    entries: TimeEntry[]
+}
+
+const groupedEntries = computed<EpicGroup[]>(() => {
+    const groups: Record<string, EpicGroup> = {}
+
+    for (const entry of timeEntries.value) {
+        let epicKey = ''
+        let epicName = 'No Epic'
+        let epicStatus = ''
+
+        if (entry.jira_issue_key) {
+            const cached = epicCache.value[entry.jira_issue_key]
+            if (cached) {
+                epicKey = cached.epicKey
+                epicName = cached.epicName
+                epicStatus = cached.epicStatus
+            } else {
+                // Not yet resolved — group under the issue key itself
+                epicKey = entry.jira_issue_key
+                epicName = entry.jira_issue_key
+            }
+        }
+
+        const groupId = epicKey || '__no_epic__'
+        if (!groups[groupId]) {
+            groups[groupId] = {epicKey, epicName, epicStatus, totalHours: 0, entries: []}
+        }
+        groups[groupId].totalHours += entry.hours
+        groups[groupId].entries.push(entry)
+    }
+
+    return Object.values(groups).sort((a, b) => b.totalHours - a.totalHours)
 })
 
-const billableDuration = computed(() => {
-    return timeEntries.value
-        .filter(entry => entry.is_billable)
-        .reduce((sum, entry) => sum + entry.hours, 0)
-})
+// --- Expand/collapse ---
 
-const nonBillableDuration = computed(() => {
-    return timeEntries.value
-        .filter(entry => !entry.is_billable)
-        .reduce((sum, entry) => sum + entry.hours, 0)
-})
+const expandedEpics = ref(new Set<string>())
+
+function toggleEpic(groupId: string) {
+    if (expandedEpics.value.has(groupId)) {
+        expandedEpics.value.delete(groupId)
+    } else {
+        expandedEpics.value.add(groupId)
+    }
+    // trigger reactivity
+    expandedEpics.value = new Set(expandedEpics.value)
+}
+
+function epicGroupId(group: EpicGroup): string {
+    return group.epicKey || '__no_epic__'
+}
+
+// --- Totals ---
+
+const totalDuration = computed(() => timeEntries.value.reduce((s, e) => s + e.hours, 0))
+const billableDuration = computed(() => timeEntries.value.filter(e => e.is_billable).reduce((s, e) => s + e.hours, 0))
+const nonBillableDuration = computed(() => timeEntries.value.filter(e => !e.is_billable).reduce((s, e) => s + e.hours, 0))
+
+// --- Helpers ---
 
 function formatDate(date: string) {
     const d = new Date(date)
@@ -43,28 +152,20 @@ function formatDate(date: string) {
 }
 
 function formatDuration(decimal: number): string {
-    // Get the integer part as hours
-    const hours = Math.floor(decimal);
-
-    // Get the fractional part and convert to minutes
-    const fractionalPart = decimal - hours;
-    let minutes = Math.round(fractionalPart * 60);
-
-    // Handle edge case where rounding gives 60 minutes
-    if (minutes === 60) {
-        return `${hours + 1}h ${0}m`;
-    }
-
-    return `${hours}h ${minutes}m`;
+    const hours = Math.floor(decimal)
+    const minutes = Math.round((decimal - hours) * 60)
+    if (minutes === 60) return `${hours + 1}h 0m`
+    return `${hours}h ${minutes}m`
 }
+
+// --- Filters & actions ---
 
 function applyFilters() {
     const params: any = {}
     if (filters.value.start_date) params.start_date = filters.value.start_date
     if (filters.value.end_date) params.end_date = filters.value.end_date
     if (filters.value.is_billable !== '') params.is_billable = filters.value.is_billable === 'true'
-
-    fetchTimeEntries(params)
+    fetchTimeEntries(params).then(resolveEpicsForEntries)
 }
 
 function editEntry(entry: TimeEntry) {
@@ -79,16 +180,17 @@ function closeModal() {
 async function handleSubmit() {
     closeModal()
     await fetchTimeEntries()
+    await resolveEpicsForEntries()
     toast.success(editingEntry.value ? 'Time entry updated!' : 'Time entry created!')
 }
 
 async function deleteEntry(id: string) {
     if (!confirm('Are you sure you want to delete this time entry?')) return
-
     try {
         await deleteTimeEntry(id)
         toast.success('Time entry deleted!')
         await fetchTimeEntries()
+        await resolveEpicsForEntries()
     } catch (e: any) {
         toast.error(e.response?.data?.message || 'Failed to delete time entry')
     }
@@ -104,6 +206,7 @@ async function syncFromJira() {
         await pullWorklogs(filters.value.start_date, filters.value.end_date)
         toast.success('Worklogs synced from Jira!')
         await fetchTimeEntries({start_date: filters.value.start_date, end_date: filters.value.end_date})
+        await resolveEpicsForEntries()
     } catch (e: any) {
         toast.error(e.response?.data?.message || 'Failed to sync worklogs from Jira')
     } finally {
@@ -113,7 +216,6 @@ async function syncFromJira() {
 
 async function syncToJira(entry: TimeEntry) {
     if (!entry.id) return
-
     try {
         await syncTimeEntryToJira(entry.id)
         toast.success('Time entry synced to Jira!')
@@ -123,7 +225,7 @@ async function syncToJira(entry: TimeEntry) {
     }
 }
 
-onMounted(() => {
+onMounted(async () => {
     const now = new Date()
     const start = format(startOfMonth(now), 'yyyy-MM-dd')
     const end = format(endOfMonth(now), 'yyyy-MM-dd')
@@ -131,7 +233,8 @@ onMounted(() => {
     filters.value.start_date = start
     filters.value.end_date = end
 
-    fetchTimeEntries({start_date: start, end_date: end})
+    await fetchTimeEntries({start_date: start, end_date: end})
+    await resolveEpicsForEntries()
 })
 </script>
 
@@ -155,6 +258,7 @@ onMounted(() => {
                 </button>
             </div>
         </template>
+
         <template #center>
             <div class="px-4 sm:px-0">
                 <!-- Filters -->
@@ -179,8 +283,7 @@ onMounted(() => {
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700"
-                                   for="billable-filter">Billable</label>
+                            <label class="block text-sm font-medium text-gray-700" for="billable-filter">Billable</label>
                             <select
                                 id="billable-filter"
                                 v-model="filters.is_billable"
@@ -212,7 +315,7 @@ onMounted(() => {
                     <p class="text-sm text-red-800">{{ error }}</p>
                 </div>
 
-                <!-- Time Entries Table -->
+                <!-- Grouped Table -->
                 <div v-else class="mt-8 flex flex-col">
                     <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
                         <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
@@ -220,93 +323,89 @@ onMounted(() => {
                                 <table class="min-w-full divide-y divide-gray-300">
                                     <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
-                                            scope="col">
-                                            Date
-                                        </th>
-                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                                            scope="col">
-                                            Description
-                                        </th>
-                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                                            scope="col">
-                                            Duration
-                                        </th>
-                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                                            scope="col">
-                                            Jira Issue
-                                        </th>
-                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                                            scope="col">
-                                            Billable
-                                        </th>
-                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                                            scope="col">
-                                            Status
-                                        </th>
-                                        <th class="relative py-3.5 pl-3 pr-4 sm:pr-6" scope="col">
-                                            <span class="sr-only">Actions</span>
-                                        </th>
+                                        <th class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6" scope="col">Date</th>
+                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900" scope="col">Description</th>
+                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900" scope="col">Duration</th>
+                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900" scope="col">Jira Issue</th>
+                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900" scope="col">Billable</th>
+                                        <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900" scope="col">Status</th>
+                                        <th class="relative py-3.5 pl-3 pr-4 sm:pr-6" scope="col"><span class="sr-only">Actions</span></th>
                                     </tr>
                                     </thead>
                                     <tbody class="divide-y divide-gray-200 bg-white">
-                                    <tr v-for="entry in timeEntries" :key="entry.id">
-                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                                            {{ formatDate(entry.date) }}
-                                        </td>
-                                        <td class="px-3 py-4 text-sm text-gray-500">
-                                            {{ entry.description }}
-                                        </td>
-                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                            {{ formatDuration(entry.hours) }}
-                                        </td>
-                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                            {{ entry.jira_issue_key || '-' }}
-                                        </td>
-                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                            <span
-                                                :class="entry.is_billable ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
-                                                class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
-                                            >
-                                                {{ entry.is_billable ? 'Yes' : 'No' }}
-                                            </span>
-                                        </td>
-                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                            <span
-                                                :class="entry.invoice_id ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'"
-                                                class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
-                                            >
-                                                {{ entry.invoice_id ? 'Invoiced' : 'Pending' }}
-                                            </span>
-                                        </td>
-                                        <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                            <button
-                                                class="text-primary-600 hover:text-primary-900 mr-4"
-                                                @click="editEntry(entry)"
-                                            >
-                                                Edit
-                                            </button>
-                                            <button
-                                                v-if="entry.jira_issue_key && !entry.jira_worklog_id"
-                                                class="text-primary-600 hover:text-primary-900 mr-4"
-                                                @click="syncToJira(entry)"
-                                            >
-                                                Sync to Jira
-                                            </button>
-                                            <button
-                                                class="text-red-600 hover:text-red-900"
-                                                @click="deleteEntry(entry.id!)"
-                                            >
-                                                Delete
-                                            </button>
-                                        </td>
-                                    </tr>
+
+                                    <template v-for="group in groupedEntries" :key="epicGroupId(group)">
+                                        <!-- Epic group header row -->
+                                        <tr
+                                            class="bg-indigo-50 cursor-pointer hover:bg-indigo-100 select-none"
+                                            @click="toggleEpic(epicGroupId(group))"
+                                        >
+                                            <td class="py-3 pl-4 pr-3 sm:pl-6" colspan="7">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex items-center gap-3">
+                                                        <!-- Chevron -->
+                                                        <svg
+                                                            :class="expandedEpics.has(epicGroupId(group)) ? 'rotate-90' : ''"
+                                                            class="h-4 w-4 text-indigo-500 transition-transform"
+                                                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                                        >
+                                                            <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                                                        </svg>
+                                                        <!-- Epic badge -->
+                                                        <span v-if="group.epicKey" class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-800">
+                                                            {{ group.epicKey }}
+                                                        </span>
+                                                        <span class="text-sm font-semibold text-gray-900">{{ group.epicName }}</span>
+                                                        <span v-if="group.epicStatus" class="text-xs text-gray-500">{{ group.epicStatus }}</span>
+                                                        <span v-if="resolvingEpics && !group.epicKey" class="text-xs text-gray-400 italic">resolving...</span>
+                                                    </div>
+                                                    <div class="flex items-center gap-4 pr-2">
+                                                        <span class="text-sm font-semibold text-indigo-700">{{ formatDuration(group.totalHours) }}</span>
+                                                        <span class="text-xs text-gray-500">{{ group.entries.length }} {{ group.entries.length === 1 ? 'entry' : 'entries' }}</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+
+                                        <!-- Entry rows (expanded) -->
+                                        <template v-if="expandedEpics.has(epicGroupId(group))">
+                                            <tr v-for="entry in group.entries" :key="entry.id" class="hover:bg-gray-50">
+                                                <td class="whitespace-nowrap py-4 pl-8 pr-3 text-sm font-medium text-gray-900 sm:pl-10">
+                                                    {{ formatDate(entry.date) }}
+                                                </td>
+                                                <td class="px-3 py-4 text-sm text-gray-500">{{ entry.description }}</td>
+                                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ formatDuration(entry.hours) }}</td>
+                                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ entry.jira_issue_key || '-' }}</td>
+                                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                                    <span
+                                                        :class="entry.is_billable ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+                                                        class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
+                                                    >{{ entry.is_billable ? 'Yes' : 'No' }}</span>
+                                                </td>
+                                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                                    <span
+                                                        :class="entry.invoice_id ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'"
+                                                        class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
+                                                    >{{ entry.invoice_id ? 'Invoiced' : 'Pending' }}</span>
+                                                </td>
+                                                <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                                    <button class="text-primary-600 hover:text-primary-900 mr-4" @click="editEntry(entry)">Edit</button>
+                                                    <button
+                                                        v-if="entry.jira_issue_key && !entry.jira_worklog_id"
+                                                        class="text-primary-600 hover:text-primary-900 mr-4"
+                                                        @click="syncToJira(entry)"
+                                                    >Sync to Jira</button>
+                                                    <button class="text-red-600 hover:text-red-900" @click="deleteEntry(entry.id!)">Delete</button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </template>
+
                                     </tbody>
                                 </table>
 
                                 <div v-if="timeEntries.length === 0" class="text-center py-12">
-                                    <p class="text-sm text-gray-500">No time entries found. Add your first time
-                                        entry!</p>
+                                    <p class="text-sm text-gray-500">No time entries found. Add your first time entry!</p>
                                 </div>
                             </div>
                         </div>
@@ -327,24 +426,18 @@ onMounted(() => {
             <!-- Summary -->
             <div v-if="timeEntries.length > 0" class="bg-white shadow-sm rounded-lg p-6 flex-col">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Summary</h3>
-
                 <div>
                     <p class="text-sm text-gray-500">Total Hours</p>
                     <p class="mt-1 text-2xl font-semibold text-gray-900">{{ formatDuration(totalDuration) }}</p>
                 </div>
                 <div>
                     <p class="text-sm text-gray-500">Billable Hours</p>
-                    <p class="mt-1 text-2xl font-semibold text-green-600">{{
-                            formatDuration(billableDuration)
-                        }}</p>
+                    <p class="mt-1 text-2xl font-semibold text-green-600">{{ formatDuration(billableDuration) }}</p>
                 </div>
                 <div>
                     <p class="text-sm text-gray-500">Non-billable Hours</p>
-                    <p class="mt-1 text-2xl font-semibold text-gray-600">{{
-                            formatDuration(nonBillableDuration)
-                        }}</p>
+                    <p class="mt-1 text-2xl font-semibold text-gray-600">{{ formatDuration(nonBillableDuration) }}</p>
                 </div>
-
             </div>
         </template>
     </ThreeColumnLayout>

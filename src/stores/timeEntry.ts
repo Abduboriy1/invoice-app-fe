@@ -58,7 +58,7 @@ export const useTimeEntryStore = defineStore('timeEntry', () => {
         }
     }
 
-    async function updateTimeEntry(id: string, data: TimeEntryUpdateRequest) {
+    async function updateTimeEntry(id: string, data: TimeEntryCreateRequest) {
         loading.value = true
         error.value = null
         try {

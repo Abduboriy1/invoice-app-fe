@@ -19,12 +19,10 @@ export interface TimeEntry {
 export interface TimeEntryCreateRequest {
     description: string
     hours: number // Decimal hours (e.g., 1.5 for 1h 30m)
-    date: Date // Will be converted to YYYY-MM-DD when sent
+    date: string // YYYY-MM-DD format
     jira_issue_key?: string
     is_billable: boolean
     jira_synced_at?: string | null // Optional - set by server when synced
 }
 
-export interface TimeEntryUpdateRequest extends TimeEntryCreateRequest {
-    id: string
-}3
+export type TimeEntryUpdateRequest = TimeEntryCreateRequest3

@@ -22,7 +22,7 @@ export function useTimeEntry() {
 
     const createTimeEntry = (data: TimeEntryCreateRequest) => store.createTimeEntry(data)
 
-    const updateTimeEntry = (id: string, data: TimeEntryUpdateRequest) =>
+    const updateTimeEntry = (id: string, data: TimeEntryCreateRequest) =>
         store.updateTimeEntry(id, data)
 
     const deleteTimeEntry = (id: string) => store.deleteTimeEntry(id)
